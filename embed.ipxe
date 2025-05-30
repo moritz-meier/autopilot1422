@@ -1,0 +1,7 @@
+#!ipxe
+
+:retry_dhcp
+dhcp || goto retry_dhcp
+
+:retry_boot
+autoboot || goto retry_boot

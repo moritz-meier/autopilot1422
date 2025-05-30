@@ -1,0 +1,222 @@
+variant: fcos
+version: 1.5.0
+
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys_local:
+        - .ssh/id_ed25519.pub
+
+# storage:
+#   disks:
+#   - device: /dev/disk/by-id/coreos-boot-disk
+#     wipe_table: true
+#     partitions:
+#     - number: 4
+#       label: root
+#       size_mib: 8192
+#       resize: true
+#     - size_mib: 0
+#       label: containers
+#   filesystems:
+#     - path: /var/lib/containers
+#       device: /dev/disk/by-partlabel/containers
+#       format: xfs
+
+storage:
+  directories:
+    - path: /home/core/.config
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/containers
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/.config/containers/systemd
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/mosquitto
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/mosquitto/config
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/zigbee2mqtt
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /home/core/home-assistant
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+
+  files:
+    - path: /var/lib/systemd/linger/core
+      mode: 0644
+
+    - path: /etc/udev/rules.d/1001-zigbee.rules
+      contents:
+        inline: |
+          ACTION=="add|change", SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE="0666"
+
+    - path: /home/core/.config/containers/systemd/mosquitto.container
+      user:
+        name: core
+      group:
+        name: core
+      mode: 0644
+      contents:
+        inline: |
+          [Unit]
+          Description=Mosquitto MQTT
+          After=local-fs.target
+
+          [Service]
+          Restart=always
+
+          [Container]
+          Image=docker.io/eclipse-mosquitto
+
+          Volume=%h/mosquitto:/mosquitto
+          Network=host
+          PublishPort=1883:1883
+
+          UserNS=keep-id
+          GroupAdd=keep-groups
+          SecurityLabelDisable=true
+
+          [Install]
+          WantedBy=default.target
+
+    - path: /home/core/.config/containers/systemd/zigbee2mqtt.container
+      user:
+        name: core
+      group:
+        name: core
+      mode: 0644
+      contents:
+        inline: |
+          [Unit]
+          Description=Zigbee2MQTT
+          After=local-fs.target
+
+          Requires=mosquitto.service
+          After=mosquitto.service
+
+          [Service]
+          Restart=always
+
+          [Container]
+          Image=docker.io/koenkk/zigbee2mqtt:latest
+
+          Volume=%h/zigbee2mqtt:/app/data
+          AddDevice=/dev/ttyUSB0:/dev/zigbee
+          Network=host
+          PublishPort=8081:8081
+
+          UserNS=keep-id
+          GroupAdd=keep-groups
+          SecurityLabelDisable=true
+
+          [Install]
+          WantedBy=default.target
+
+    - path: /home/core/.config/containers/systemd/home-assistant.container
+      user:
+        name: core
+      group:
+        name: core
+      mode: 0644
+      contents:
+        inline: |
+          [Unit]
+          Description=Home Assistant
+          After=local-fs.target
+
+          [Service]
+          Restart=always
+
+          [Container]
+          Image=ghcr.io/home-assistant/home-assistant:stable
+
+          Volume=%h/home-assistant:/config
+          Network=host
+          PublishPort=8123:8123
+
+          UserNS=keep-id
+          GroupAdd=keep-groups
+          SecurityLabelDisable=true
+
+          [Install]
+          WantedBy=default.target
+
+    - path: /home/core/mosquitto/config/mosquitto.conf
+      user:
+        name: core
+      group:
+        name: core
+      mode: 0644
+      contents:
+        inline: |
+          # Listen on port 1883
+          listener 1883
+          socket_domain ipv4
+
+          # save the in-memory database to disk
+          persistence true
+
+          persistence_location /mosquitto/data/
+          # Log to stderr and logfile
+          log_dest stderr
+          log_dest file /mosquitto/log/mosquitto.log
+
+          allow_anonymous true
+
+    - path: /home/core/zigbee2mqtt/configuration.yaml
+      user:
+        name: core
+      group:
+        name: core
+      mode: 0644
+      contents:
+        inline: |
+          serial:
+            adapter: zstack
+            port: /dev/zigbee
+          mqtt:
+            server: mqtt://localhost:1883
+          frontend:
+            enabled: true
+            port: 8081
+            homeassistant:
+              enabled: true
+          advanced:
+            pan_id: GENERATE
+            ext_pan_id: GENERATE
+            network_key: GENERATE
+          devices:
+            '0x00124b002fac3774':
+              friendly_name: Temp Desk
+            '0x00124b002fabf5e9':
+              friendly_name: Temp Bathroom
+            '0x8c65a3fffe560cc2':
+              friendly_name: LED Kitchen
+              transition: ''
