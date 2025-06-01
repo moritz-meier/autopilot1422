@@ -1,17 +1,54 @@
 {
   "nodes": {
+    "devshell": {
+      "inputs": {
+        "nixpkgs": [
+          "xlnx",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1741473158,
+        "narHash": "sha256-kWNaq6wQUbUMlPgw8Y+9/9wP0F8SHkjy24/mN3UAppg=",
+        "owner": "numtide",
+        "repo": "devshell",
+        "rev": "7c9e793ebe66bcba8292989a68c0419b737a22a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "devshell",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1740950883,
-        "narHash": "sha256-7YjNGygTAVLe4jWT/tJgy6YksdzB25KvUxx4psZDeqE=",
+        "lastModified": 1748713295,
+        "narHash": "sha256-oVeGo80E517Oj7Uu+HrumlGt012ufMKOCUBonLMroGM=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "17bf4a5311744a8f7ae08dc26c7efdc04ac4d2a0",
+        "rev": "b94166b8b6c33ebebebef463a244308817cb823a",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
-        "ref": "release-24.11",
+        "ref": "master",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1747485343,
+        "narHash": "sha256-YbsZyuRE1tobO9sv0PUwg81QryYo3L1F3R3rF9bcG38=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9b5ac7ad45298d58640540d0323ca217f32a6762",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -19,7 +56,29 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix"
+        "treefmt-nix": "treefmt-nix",
+        "xlnx": "xlnx"
+      }
+    },
+    "treefmt": {
+      "inputs": {
+        "nixpkgs": [
+          "xlnx",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1747469671,
+        "narHash": "sha256-bo1ptiFoNqm6m1B2iAhJmWCBmqveLVvxom6xKmtuzjg=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "ab0378b61b0d85e73a8ab05d5c6029b5bd58c9fb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "type": "github"
       }
     },
     "treefmt-nix": {
@@ -39,6 +98,27 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "xlnx": {
+      "inputs": {
+        "devshell": "devshell",
+        "nixpkgs": "nixpkgs_2",
+        "treefmt": "treefmt"
+      },
+      "locked": {
+        "lastModified": 1747655511,
+        "narHash": "sha256-yo38xANZHzbezeiaNwj8hIkdkMa9Odas0jQ0OYvaXl4=",
+        "owner": "moritz-meier",
+        "repo": "xilinx-nix-utils",
+        "rev": "99bca4806c2729b7771f66ca93284c2572e6facb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "moritz-meier",
+        "ref": "staging",
+        "repo": "xilinx-nix-utils",
         "type": "github"
       }
     }
