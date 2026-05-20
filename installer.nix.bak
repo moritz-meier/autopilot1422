@@ -1,0 +1,238 @@
+{
+  lib,
+  modulesPath,
+  pkgs,
+  ...
+}@args:
+let
+  config = args.config.specialisation.installer.configuration;
+in
+{
+
+  imports = [
+    (modulesPath + "/profiles/perlless.nix")
+    (modulesPath + "/system/boot/uki.nix")
+  ];
+
+  options.installer = {
+    srcFlake = lib.mkOption {
+      type = with lib.types; path;
+      description = "Flake which contains the target NixOS configuration";
+    };
+
+    configName = lib.mkOption {
+      type = with lib.types; str;
+      description = "Name of the target NixOS configuration to install";
+    };
+
+    formatDiskScript = lib.mkOption {
+      type = with lib.types; path;
+      description = "Script to format the disk in preperation of NixOS installation";
+    };
+  };
+
+  config = {
+    specialisation.installer.inheritParentConfig = false;
+    specialisation.installer.configuration = {
+
+      nixpkgs.buildPlatform = args.config.nixpkgs.buildPlatform;
+      nixpkgs.hostPlatform = args.config.nixpkgs.hostPlatform;
+
+      system.build.kernel = args.config.system.build.kernel;
+
+      fileSystems."/" = {
+        fsType = "tmpfs";
+        options = [ "mode=0755" ];
+      };
+
+      fileSystems."/nix/.ro-store" = lib.mkImageMediaOverride {
+        fsType = "squashfs";
+        device = "../nix-store.squashfs";
+        options = [ "loop" ];
+        neededForBoot = true;
+      };
+
+      fileSystems."/nix/.rw-store" = lib.mkImageMediaOverride {
+        fsType = "tmpfs";
+        options = [ "mode=0755" ];
+        neededForBoot = true;
+      };
+
+      fileSystems."/nix/store" = lib.mkImageMediaOverride {
+        overlay = {
+          lowerdir = [ "/nix/.ro-store" ];
+          upperdir = "/nix/.rw-store/store";
+          workdir = "/nix/.rw-store/work";
+        };
+        neededForBoot = true;
+      };
+
+      system.build.squashfsStore =
+        pkgs.buildPackages.callPackage (pkgs.path + "/nixos/lib/make-squashfs.nix")
+          {
+            storeContents = [
+              config.system.build.toplevel
+            ];
+            comp = "zstd";
+          };
+
+      system.build.installerRamdisk = pkgs.buildPackages.makeInitrdNG {
+        inherit (config.boot.initrd) compressor;
+        prepend = [ "${config.system.build.initialRamdisk}/initrd" ];
+
+        contents = [
+          {
+            source = config.system.build.squashfsStore;
+            target = "/nix-store.squashfs";
+          }
+        ];
+      };
+
+      nix.settings = {
+        builders-use-substitutes = true;
+        trusted-users = [ "root" ];
+        experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+      };
+
+      systemd.services = {
+        format-disk = {
+          description = "Format disk for NixOS installation";
+
+          after = [ "local-fs-pre.target" ];
+
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            StandardOutput = "journal+console";
+          };
+
+          script = ''
+            ${config.installer.formatDiskScript}
+          '';
+        };
+
+        install = {
+          description = "Install NixOS configuration to disk";
+
+          wantedBy = [ "multi-user.target" ];
+
+          after = [ "format-disk.service" ];
+          requires = [ "format-disk.service" ];
+
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            StandardOutput = "journal+console";
+          };
+
+          path = with pkgs; [
+            nix
+            nixos-install
+          ];
+
+          script = ''
+            export PATH="$PATH:/nix/var/nix/profiles/system/sw/bin"
+
+            mkdir -p /mnt/etc
+            cp -r -- ${config.installer.srcFlake}/. /mnt/etc/nixos
+
+            nixos-install --flake /mnt/etc/nixos#${config.installer.configName}
+          '';
+        };
+      };
+
+      services.getty.autologinUser = "root";
+
+      services.openssh = {
+        enable = true;
+        settings = {
+          PasswordAuthentication = true;
+          KbdInteractiveAuthentication = true;
+          PermitRootLogin = "yes";
+          AllowUsers = [ "root" ];
+        };
+      };
+
+      boot.uki.settings.UKI.Initrd = "${config.system.build.installerRamdisk}/initrd";
+
+      system.build.runVM = pkgs.buildPackages.writeShellScript "runVM" ''
+        foo=$(mktemp -d)
+        mkdir -p $foo/efi/boot
+        cp ${config.system.build.uki}/nixos.efi $foo/efi/boot/bootaa64.efi
+
+        ${pkgs.buildPackages.qemu_full}/bin/qemu-img create -f qcow2 /dev/shm/test-disk.qcow2 32G
+
+        ${pkgs.buildPackages.qemu_full}/bin/qemu-system-aarch64 \
+          -machine virt\
+          -cpu cortex-a53 \
+          -smp 4 \
+          -m size=2G \
+          -nographic \
+          -bios ${pkgs.ubootQemuAarch64}/u-boot.bin \
+          -drive format=qcow2,file=/dev/shm/test-disk.qcow2,if=virtio \
+          -drive format=raw,media=disk,file=fat:rw:$foo \
+          -net user,hostfwd=tcp::2222-:22 -net nic \
+          "''${@}"
+      '';
+
+      users.mutableUsers = false;
+      users.users.root.initialPassword = "root";
+    };
+  };
+}
+
+# installer = nixpkgs.lib.nixosSystem {
+#   specialArgs = {
+#     inherit inputs;
+#     nixosConfig = autopilot1422;
+#   };
+#   modules = [
+#     ./installer.nix
+#     (
+#       { pkgs, ... }:
+#       {
+#         installer.srcFlake = ./.;
+#         installer.configName = "autopilot1422";
+#         installer.formatDiskScript = "${
+#           pkgs.writeShellApplication {
+#             name = "format-disk";
+#             runtimeInputs = with pkgs; [
+#               coreutils
+#               util-linux
+#               gptfdisk
+#               dosfstools
+#               e2fsprogs
+#               btrfs-progs
+#             ];
+
+#             text = ''
+#               sgdisk --zap-all /dev/vda
+
+#               sgdisk -n 1:0:+1024M -t 1:ef00 -c 1:"BOOT" /dev/vda
+#               sgdisk -n 2:0:0 -t 2:8305 -c 2:"nixos" /dev/vda
+
+#               mkfs.vfat -F 32 -n boot /dev/vda1
+#               mkfs.ext4 -L nixos /dev/vda2
+
+#               udevadm settle
+
+#               mkdir -p /mnt
+#               mount /dev/disk/by-label/nixos /mnt
+
+#               mkdir -p /mnt/boot
+#               mount /dev/disk/by-label/boot /mnt/boot
+
+#               dd if=/dev/zero of=/mnt/swap bs=1M count=4096
+#               chmod 600 /mnt/swap
+#               mkswap /mnt/swap
+#               swapon /mnt/swap
+#             '';
+#           }
+#         }/bin/format-disk";
+#       }
+#     )
+#   ];
+# };
