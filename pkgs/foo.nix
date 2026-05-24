@@ -26,6 +26,8 @@ stdenv.mkDerivation {
     cp ${../foo.py} $out/bin/foo
     chmod +x $out/bin/foo
 
+    echo "${stdenv.buildPlatform.system} ${stdenv.hostPlatform.system}" > $out/foo.txt
+
     runHook postInstall
   '';
 
