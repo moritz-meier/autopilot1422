@@ -59,7 +59,7 @@
 
   system.build.efi = pkgs.buildPackages.runCommand "efi" { } ''
     mkdir $out
-    ${pkgs.buildPackages.systemdUkify}/bin/ukify --help
+    ${pkgs.buildPackages.foo}/bin/foo
   '';
 
   qemuUbootVM.bootEfi = "${config.system.build.efi}/nixos.efi";
