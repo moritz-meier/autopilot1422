@@ -8,7 +8,7 @@
     (modulesPath + "/virtualisation/qemu-vm.nix")
   ];
 
-  nixpkgs.buildPlatform = "x86_64-linux";
+  nixpkgs.buildPlatform = "aarch64-linux";
   nixpkgs.hostPlatform = "aarch64-linux";
 
   nixpkgs.overlays = [ (import ./pkgs.nix) ];
