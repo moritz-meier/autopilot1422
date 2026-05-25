@@ -1,4 +1,7 @@
-{ stdenv, python3 }:
+{
+  stdenv,
+  python3,
+}:
 stdenv.mkDerivation {
   name = "foo";
   version = "0.1.0";
@@ -25,8 +28,6 @@ stdenv.mkDerivation {
 
     cp ${../foo.py} $out/bin/foo
     chmod +x $out/bin/foo
-
-    echo "${stdenv.buildPlatform.system} ${stdenv.hostPlatform.system}" > $out/foo.txt
 
     runHook postInstall
   '';

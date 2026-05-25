@@ -1,11 +1,14 @@
 {
+  modulesPath,
+  pkgs,
   ...
 }:
 {
   imports = [
+    (modulesPath + "/virtualisation/qemu-vm.nix")
   ];
 
-  nixpkgs.buildPlatform = "aarch64-linux";
+  nixpkgs.buildPlatform = "x86_64-linux";
   nixpkgs.hostPlatform = "aarch64-linux";
 
   nixpkgs.overlays = [ (import ./pkgs.nix) ];
@@ -42,4 +45,9 @@
   users.users.root.initialPassword = "root";
 
   services.openssh.settings.PermitRootLogin = "yes";
+
+  virtualisation.host.pkgs = pkgs.buildPackages;
+  virtualisation.cores = 8;
+  virtualisation.memorySize = 8096;
+  virtualisation.graphics = false;
 }
